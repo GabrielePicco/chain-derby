@@ -7,7 +7,7 @@ import { useEmbeddedWallet } from "./useEmbeddedWallet";
 import { useSolanaEmbeddedWallet } from "./useSolanaEmbeddedWallet";
 import { useFuelEmbeddedWallet } from "./useFuelEmbeddedWallet";
 import { createSyncPublicClient, syncTransport } from "rise-shred-client";
-import { Connection, SystemProgram, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { Connection, SystemProgram, Transaction } from "@solana/web3.js";
 import type { SolanaChainConfig } from "@/solana/config";
 import type { FuelChainConfig } from "@/fuel/config";
 import { getGeo } from "@/lib/geo";
