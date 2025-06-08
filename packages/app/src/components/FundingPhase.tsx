@@ -12,7 +12,7 @@ import Image from "next/image";
 export function FundingPhase() {
   const { account, balances, checkBalances, isLoadingBalances, selectedChains, setSelectedChains, layerFilter, setLayerFilter, networkFilter, setNetworkFilter, getFilteredChains } = useChainRaceContext();
   const isMobile = useIsMobile();
-  
+
   // Format balance for display - handle EVM, Solana, and Fuel
   const formatBalance = (balance: bigint, chainId: number | string) => {
     if (typeof chainId === 'string' && chainId.includes('solana')) {
@@ -67,7 +67,7 @@ export function FundingPhase() {
       return num.toFixed(6).replace(/\.?0+$/, '');
     }
   };
-  
+
   if (!account) {
     return (
       <Card className="w-full">
@@ -79,14 +79,14 @@ export function FundingPhase() {
       </Card>
     );
   }
-  
+
   return (
     <Card className="w-full pt-6 gap-3">
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between pb-0 mb-0 gap-4 sm:gap-0">
         <CardTitle color="mb-0">Race Control</CardTitle>
-        <Button 
-          variant="outline" 
-          onClick={checkBalances} 
+        <Button
+          variant="outline"
+          onClick={checkBalances}
           disabled={isLoadingBalances}
           className="flex items-center gap-2 text-xs sm:text-sm"
         >
@@ -107,7 +107,7 @@ export function FundingPhase() {
         <CardDescription>
           To start the race, fund your wallet on each chain with a small amount of tokens.
         </CardDescription>
-        
+
         <div className="flex flex-col sm:flex-row gap-4 mb-4 justify-between">
           <div className="flex justify-start">
             <ToggleGroup type="single" value={networkFilter} onValueChange={(value: string) => value && setNetworkFilter(value as 'Mainnet' | 'Testnet')}>
@@ -119,7 +119,7 @@ export function FundingPhase() {
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
-          
+
           <div className="flex justify-end">
             <ToggleGroup type="single" value={layerFilter} onValueChange={(value: string) => value && setLayerFilter(value as 'L1' | 'L2' | 'Both')}>
               <ToggleGroupItem value="L1" aria-label="Layer 1 chains">
@@ -134,19 +134,19 @@ export function FundingPhase() {
             </ToggleGroup>
           </div>
         </div>
-        
+
         <div className="space-y-2">
           {getFilteredChains().map((chain) => {
             const chainBalance = balances.find(b => b.chainId === chain.id);
             const hasBalance = chainBalance?.hasBalance || false;
             const balance = chainBalance?.balance || BigInt(0);
             const isSelected = selectedChains.includes(chain.id);
-            
+
             return (
-              <div 
-                key={chain.id} 
+              <div
+                key={chain.id}
                 className="flex items-center justify-between py-2 px-4 rounded-md cursor-pointer relative"
-                style={{ 
+                style={{
                   backgroundColor: isSelected ? `${chain.color}30` : `${chain.color}15`,
                   outline: isSelected ? "2px solid #b197fc" : "none", // Light purple outline
                   boxShadow: isSelected ? "0 0 8px rgba(177, 151, 252, 0.5)" : "none" // Purple glow
@@ -166,7 +166,7 @@ export function FundingPhase() {
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                      <Image 
+                      <Image
                         src={chain.logo || "/logos/rise.png"}
                         alt={`${chain.name} Logo`}
                         width={32}
@@ -182,18 +182,18 @@ export function FundingPhase() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium text-black dark:text-white">{chain.name}</h3>
                       {'layer' in chain ? (
-                        <Badge 
-                          variant="secondary" 
+                        <Badge
+                          variant="secondary"
                           className="text-xs px-2 py-0.5 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
                         >
                           {chain.layer}
                         </Badge>
                       ) : (
-                        <Badge 
-                          variant="secondary" 
+                        <Badge
+                          variant="secondary"
                           className="text-xs px-2 py-0.5 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
                         >
-                          L1
+                          {chain.id === "magicblock-testnet" ? "Ext" : "L1"}
                         </Badge>
                       )}
                     </div>
@@ -204,7 +204,7 @@ export function FundingPhase() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   {/* Faucet link for testnet chains */}
                   {('testnet' in chain ? chain.testnet : true) && chain.faucetUrl && (
@@ -215,9 +215,9 @@ export function FundingPhase() {
                       asChild
                       onClick={(e) => e.stopPropagation()} // Prevent row click when clicking faucet
                     >
-                      <a 
-                        href={chain.faucetUrl} 
-                        target="_blank" 
+                      <a
+                        href={chain.faucetUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-blue-500 hover:text-blue-600"
                         title={`Get ${'nativeCurrency' in chain ? chain.nativeCurrency.symbol : 'SOL'} from faucet`}
@@ -227,7 +227,7 @@ export function FundingPhase() {
                       </a>
                     </Button>
                   )}
-                  
+
                   {!chainBalance ? (
                     <Loader2 size={20} className="animate-spin text-muted-foreground" />
                   ) : hasBalance ? (
@@ -241,9 +241,9 @@ export function FundingPhase() {
                     <>
                       <XCircle size={20} className="text-red-500" />
                       {chainBalance.error && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="text-xs text-red-500 p-0 h-auto hover:bg-transparent"
                           title={chainBalance.error}
                           onClick={(e) => {

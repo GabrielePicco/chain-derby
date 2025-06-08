@@ -29,6 +29,17 @@ export const solanaDevnet: SolanaChainConfig = {
   endpoint: process.env.NEXT_PUBLIC_SOLANA_DEVNET_RPC_URL ?? clusterApiUrl("devnet"),
   color: "#9945FF",
   logo: "/logos/solana.png",
+  commitment: "processed",
+  faucetUrl: "https://faucet.solana.com",
+};
+
+export const magicblockDevnet: SolanaChainConfig = {
+  id: "magicblock-testnet",
+  name: "MagicBlock",
+  cluster: "devnet",
+  endpoint: process.env.NEXT_PUBLIC_MAGICBLOCK_DEVNET_RPC_URL ?? "https://testnet.magicblock.app",
+  color: "#9945FF",
+  logo: "/logos/magicblock.png",
   commitment: "confirmed",
   faucetUrl: "https://faucet.solana.com",
 };
@@ -45,7 +56,8 @@ export const solanaMainnet: SolanaChainConfig = {
 };
 
 export const solanaChains: SolanaChainConfig[] = [
-  solanaTestnet,
-  // solanaDevnet,
+  //solanaTestnet,
+  magicblockDevnet,
+  solanaDevnet,
   // solanaMainnet, // not working?
 ];

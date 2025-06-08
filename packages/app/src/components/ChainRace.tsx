@@ -7,19 +7,19 @@ import { Loader2, XCircle, Trophy, Clock, RefreshCw, Play } from "lucide-react";
 import Image from "next/image";
 
 export function ChainRace() {
-  const { 
+  const {
     results,
-    status, 
-    startRace, 
+    status,
+    startRace,
     restartRace,
-    isReady, 
-    checkBalances, 
+    isReady,
+    checkBalances,
     isLoadingBalances
   } = useChainRaceContext();
-  
+
   // Sort by chainId to maintain consistent lane order, regardless of race position
   const sortedResults = [...results];
-  
+
   // We previously checked if the race is finished here, but removed as unused
 
   const handleAction = () => {
@@ -31,11 +31,11 @@ export function ChainRace() {
       checkBalances();
     } else if (status === "finished") {
       // Reset to the ready state so the FundingPhase will be shown again
-      restartRace(); 
+      restartRace();
       // The UI will now show FundingPhase again until the user starts a new race
     }
   };
-  
+
   return (
     <div className="flex flex-col">
       {/* Top banner with sky and clouds */}
@@ -47,9 +47,9 @@ export function ChainRace() {
             width={1000}
             height={400}
             className="w-full block"
-            style={{ 
-              objectFit: "cover", 
-              display: "block", 
+            style={{
+              objectFit: "cover",
+              display: "block",
               marginBottom: 0
             }}
           />
@@ -65,25 +65,25 @@ export function ChainRace() {
               {isLoadingBalances ? "Checking Balances..." : "Check Balances"}
             </>
           )}
-          
+
           {status === "funding" && (
             <>
               <RefreshCw size={16} className={`mr-2 ${isLoadingBalances ? "animate-spin" : ""}`} color="white" />
               {isLoadingBalances ? "Checking Balances..." : "Check Again"}
             </>
           )}
-          
+
           {status === "ready" && (
             <>
               <Play size={16} className="mr-2" color="white" />
               Start Race
             </>
           )}
-          
+
           {status === "racing" && (
             <>Racing...</>
           )}
-          
+
           {status === "finished" && (
             <>
               <RefreshCw size={16} className="mr-2" color="white" />
@@ -94,25 +94,25 @@ export function ChainRace() {
         </div>
         </div>
       </div>
-      
+
       <CardContent className="w-full p-0 relative" style={{ fontSize: 0, lineHeight: 0 }}>
         {/* Race tracks container with absolute positioning for precise control */}
-        <div style={{ 
-          fontSize: "16px", 
+        <div style={{
+          fontSize: "16px",
           lineHeight: "normal",
           height: `${Math.min(results.length * 120, 720)}px` // Height based on number of tracks
         }}>
           {sortedResults.map((result, index) => (
-            <div 
-              key={result.chainId} 
-              className="relative transition-all duration-1000 ease-in-out" 
+            <div
+              key={result.chainId}
+              className="relative transition-all duration-1000 ease-in-out"
               data-position={result.position}
             >
               <ChainRaceTrack result={result} index={index} />
             </div>
           ))}
         </div>
-        
+
         {/* Bottom grass image */}
         {sortedResults.length &&
           <div className="w-full">
@@ -128,7 +128,7 @@ export function ChainRace() {
             </div>
           </div>
         }
-        
+
         {/* Race results have been removed as requested */}
       </CardContent>
     </div>
@@ -138,7 +138,7 @@ export function ChainRace() {
 function ChainRaceTrack({ result, index }: { result: RaceResult, index: number }) {
   // Calculate horse position as percentage with discrete steps
   let position = 0;
-  
+
   if (result.status === "success") {
     position = 100; // Move finish line closer to the right edge
   } else if (result.status === "racing") {
@@ -156,36 +156,36 @@ function ChainRaceTrack({ result, index }: { result: RaceResult, index: number }
     // If error, show at a fixed position
     position = 30;
   }
-  
+
   // Animation styles for horses - only animate during the race
-  const animation = 
-    result.status === "racing" ? 
-      "animation: horse-run 500ms infinite ease-in-out" : 
+  const animation =
+    result.status === "racing" ?
+      "animation: horse-run 500ms infinite ease-in-out" :
       "";
-      
+
   // Determine if this track should get a highlight effect (just finished)
   const shouldHighlight = result.status === "success" && result.position && result.position <= 3;
-  
+
   return (
     <div className="relative h-30 my-0">
       {/* Trophy positioned to the right side of the track for top 3 finishers */}
       {shouldHighlight && (
         <div className="absolute right-42 bottom-1/2 z-2 rounded-full p-2 flex items-center justify-center animate-drop-in">
-          <Image 
-                src={`/trophy_${result.position}.png`} 
-                alt={`${result.position} Trophy`} 
-                width={83} 
+          <Image
+                src={`/trophy_${result.position}.png`}
+                alt={`${result.position} Trophy`}
+                width={83}
                 height={100}
                 style={{ width: 'auto', height: 'auto' }}
-              />         
+              />
         </div>
       )}
-      
+
       {/* Confetti effect for 1st place */}
       {result.position === 1 && result.status === "success" && (
         <>
           {[...Array(10)].map((_, i) => (
-            <div 
+            <div
               key={i}
               className="z-20 w-2 h-2 rounded-full pointer-events-none"
               style={{
@@ -199,7 +199,7 @@ function ChainRaceTrack({ result, index }: { result: RaceResult, index: number }
           ))}
         </>
       )}
-      
+
       {/* Track background image */}
       <div className="absolute inset-0 w-full h-full">
         <Image
@@ -208,18 +208,18 @@ function ChainRaceTrack({ result, index }: { result: RaceResult, index: number }
           fill
         />
       </div>
-      
+
       {/* Chain name label on the left */}
       <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-gray-900/90 rounded-lg px-3 py-2 shadow-md min-w-[240px]">
         <div className="flex items-center gap-3">
           {/* Chain logo */}
           <div className="flex-shrink-0">
-            <Image 
+            <Image
               src={result.logo || "/logos/rise.png"}
               alt={`${result.name} Logo`}
               width={36}
               height={36}
-              style={{ 
+              style={{
                 borderRadius: "50%",
                 boxShadow: "0 0 4px rgba(0,0,0,0.2)"
               }}
@@ -257,7 +257,7 @@ function ChainRaceTrack({ result, index }: { result: RaceResult, index: number }
               )}
               {result.status === "racing" && (
                 <span className="flex items-center">
-                  <Loader2 size={10} className="inline mr-1 animate-spin" /> 
+                  <Loader2 size={10} className="inline mr-1 animate-spin" />
                   {result.txCompleted}/{result.txTotal} tx
                 </span>
               )}
@@ -270,12 +270,12 @@ function ChainRaceTrack({ result, index }: { result: RaceResult, index: number }
           </div>
         </div>
       </div>
-      
+
       {/* Horse on the track */}
-      <div 
+      <div
         className="absolute top-1/2 w-full ml-[-190]"
-        style={{ 
-          left: 0, 
+        style={{
+          left: 0,
           transform: `translate(${position}%, -70%)`, /* Move horses down by adjusting translateY from -50% to -30% */
           zIndex: result.status === "error" ? 1 : 5,
           width: "180",
@@ -287,10 +287,10 @@ function ChainRaceTrack({ result, index }: { result: RaceResult, index: number }
           <div className="relative" style={{ animation }}>
             <div className="relative">
               <div className="w-[180] h-[172] relative overflow-hidden">
-                <Image 
-                  src="/horse_sprite.png" 
-                  alt={`${result.name} Horse`} 
-                  width={1080} 
+                <Image
+                  src={result.chainId === "magicblock-testnet" ? "/horse_sprite_magic.png" : "/horse_sprite.png"}
+                  alt={`${result.name} Horse`}
+                  width={1080}
                   height={172}
                   className="max-w-none animate-sprite"
                   style={{
@@ -298,21 +298,21 @@ function ChainRaceTrack({ result, index }: { result: RaceResult, index: number }
                   }}
                 />
               </div>
-              
+
               {/* Chain logo on the white square of the horse */}
               <div className="absolute" style={{ left: "67px", top: "100px" }}>
-                <Image 
+                <Image
                   src={result.logo || "/logos/rise.png"}
                   alt={`${result.name} Logo`}
                   width={20}
                   height={20}
-                  style={{ 
+                  style={{
                     borderRadius: "50%",
                   }}
                 />
               </div>
             </div>
-            
+
             {/* Horse trophy removed as requested */}
           </div>
         )}

@@ -119,11 +119,11 @@ const seiMainnet_ = {
 // Add the EVM chains we want to include in the race (both testnet and mainnet)
 export const evmChains = [
   // Testnets
-  riseTestnet_, 
-  monadTestnet_, 
-  megaethTestnet_, 
-  sonicBlaze_, 
-  baseSepolia_, 
+  riseTestnet_,
+  monadTestnet_,
+  megaethTestnet_,
+  sonicBlaze_,
+  baseSepolia_,
   somniaTestnet_,
   seiTestnet_,
   // Mainnets
@@ -133,7 +133,7 @@ export const evmChains = [
 ];
 
 // All chains (EVM + Solana + Fuel)
-export const allChains = [...evmChains, ...solanaChains, ...fuelChains];
+export const allChains = [...solanaChains, ...evmChains, ...fuelChains];
 
 // Backward compatibility - rename raceChains to evmChains
 export const raceChains = evmChains;

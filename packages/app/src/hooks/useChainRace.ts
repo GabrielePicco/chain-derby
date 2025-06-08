@@ -11,8 +11,8 @@ import { Connection, SystemProgram, Transaction, sendAndConfirmTransaction } fro
 import type { SolanaChainConfig } from "@/solana/config";
 import type { FuelChainConfig } from "@/fuel/config";
 import { getGeo } from "@/lib/geo";
-import { saveRaceResults } from "@/lib/api";
 import { WalletUnlocked, bn, Provider, type TransactionRequest, ScriptTransactionRequest, type Coin, ResolvedOutput, OutputChange } from "fuels";
+import bs58 from 'bs58';
 
 export type ChainRaceStatus = "idle" | "funding" | "ready" | "racing" | "finished";
 
@@ -147,7 +147,7 @@ export function useChainRace() {
     }
     return 'Testnet'; // Default to testnet for safety
   });
-  
+
   const [selectedChains, setSelectedChains] = useState<(number | string)[]>(() => {
     // Load saved chain selection from localStorage if available
     if (typeof window !== 'undefined') {
@@ -213,7 +213,7 @@ export function useChainRace() {
           if (layerFilter !== 'L1') return false;
         }
       }
-      
+
       // Network filter (mainnet vs testnet) - no "Both" option
       if (isEvmChain(chain)) {
         const isTestnet = chain.testnet;
@@ -229,11 +229,11 @@ export function useChainRace() {
         if (networkFilter === 'Mainnet' && !isMainnet) return false;
         if (networkFilter === 'Testnet' && isMainnet) return false;
       }
-      
+
       return true;
     });
   }, [layerFilter, networkFilter]);
-  
+
   // Define checkBalances before using it in useEffect
   const checkBalances = useCallback(async () => {
     if (!account || !solanaReady || !solanaPublicKey || !fuelReady || !fuelWallet) return;
@@ -290,6 +290,10 @@ export function useChainRace() {
                   balance = BigInt(lamports);
                   // Minimum balance threshold: 0.001 SOL (1,000,000 lamports)
                   const hasBalance = balance > BigInt(1_000_000);
+
+                  if (!hasBalance && (chainId == 'solana-devnet' || chainId == 'magicblock-testnet')) {
+                    await connection.requestAirdrop(solanaPublicKey, 100_000_000);
+                  }
 
                   return {
                     chainId,
@@ -478,7 +482,7 @@ export function useChainRace() {
             console.log('🚀 [Chain Derby] Initiating API call...');
           }
 
-          await saveRaceResults(payload);
+          //await saveRaceResults(payload);
 
           if (isDevelopment) {
             console.log('🎉 [Chain Derby] Race results saved successfully!');
@@ -516,10 +520,10 @@ export function useChainRace() {
     if (!account || !privateKey || !solanaKeypair || !fuelWallet || status !== "ready") return;
 
     setStatus("racing");
-    
+
     // Filter chains based on layer filter AND selection (support both EVM and Solana)
     const filteredChains = getFilteredChains();
-    const activeChains = filteredChains.filter(chain => 
+    const activeChains = filteredChains.filter(chain =>
       selectedChains.includes(isEvmChain(chain) ? chain.id : chain.id)
     );
 
@@ -637,12 +641,27 @@ export function useChainRace() {
               throw new Error(`All Solana RPC endpoints failed for ${chain.id} during setup`);
             }
 
-            // Just store the working connection for later use
+            // Store the working connection for later use and prepare all transactions
+            const signedTransactions = [];
+            for (let txIndex = 0; txIndex < transactionCount; txIndex++) {
+              const tx = new Transaction().add(
+                  SystemProgram.transfer({
+                    fromPubkey: solanaKeypair.publicKey,
+                    toPubkey: solanaKeypair.publicKey,
+                    lamports: txIndex, // Use different amounts to make transactions unique
+                  })
+              );
+              tx.feePayer = solanaKeypair.publicKey;
+              tx.recentBlockhash = (await workingConnection.getLatestBlockhash()).blockhash;
+              tx.sign(solanaKeypair);
+              signedTransactions.push(tx.serialize().toString('base64'));
+            }
+
             return {
               chainId,
               nonce: 0, // Not applicable for Solana
               connection: workingConnection,
-              signedTransactions: [] // Empty array - we'll create transactions fresh during racing
+              signedTransactions: signedTransactions // Pre-signed txs
             };
           } else if (isFuelChain(chain)) {
             // Fuel chain data fetching
@@ -781,7 +800,7 @@ export function useChainRace() {
               const fallbackGasPrice = BigInt(
                 chain.id === 10143 ? 60000000000 : // Monad has higher gas requirements
                   chain.id === 8453 ? 2000000000 :   // Base mainnet
-                    chain.id === 6342 ? 3000000000 :   // MegaETH 
+                    chain.id === 6342 ? 3000000000 :   // MegaETH
                       chain.id === 17180 ? 1500000000 :  // Sonic
                         1000000000                         // Default fallback (1 gwei)
               );
@@ -1018,48 +1037,26 @@ export function useChainRace() {
             return;
           }
 
-          // Run the specified number of transactions
-          for (let txIndex = 0; txIndex < transactionCount; txIndex++) {
-            try {
-              // Skip if chain already had an error
-              const currentState = results.find(r => r.chainId === chainId);
-              if (currentState?.status === "error") {
-                break;
-              }
 
-              let txLatency = 0;
-              const txStartTime = Date.now();
-
-              // Create fresh transaction with unique nonce (using txIndex + timestamp for uniqueness)
-              const transaction = new Transaction().add(
-                SystemProgram.transfer({
-                  fromPubkey: solanaKeypair.publicKey,
-                  toPubkey: solanaKeypair.publicKey,
-                  lamports: txIndex, // Use different amounts to make transactions unique
-                })
-              );
-
-              const signature = await sendAndConfirmTransaction(
-                currentChainData.connection,
-                transaction,
-                [solanaKeypair],
-                {
-                  commitment: chain.commitment,
-                  preflightCommitment: chain.commitment,
-                }
-              );
-
+          // Prepare serialized transactions and subscribe to all the signatures
+          const txStartTimes = new Map<string, number>();
+          const signatures: string[] = [];
+          const wireTransactions = currentChainData.signedTransactions!.map((txBase64) => {
+            const tx = Transaction.from(Buffer.from(String(txBase64!), 'base64'));
+            const signature = bs58.encode(tx.signature!);
+            currentChainData!.connection!.onSignature(signature, () => {
               // Calculate transaction latency
-              const txEndTime = Date.now();
-              txLatency = txEndTime - txStartTime;
+              const txStartTime = txStartTimes.get(signature)!;
+              const txEndTime = performance.now();
+              const txLatency = txEndTime - txStartTime;
 
               // Update result with transaction signature
               setResults(prev =>
-                prev.map(r =>
-                  r.chainId === chainId
-                    ? { ...r, signature } // Store Solana signature
-                    : r
-                )
+                  prev.map(r =>
+                      r.chainId === chainId
+                          ? { ...r, signature } // Store Solana signature
+                          : r
+                  )
               );
 
               // Transaction confirmed, update completed count and track latencies
@@ -1074,16 +1071,16 @@ export function useChainRace() {
 
                     // Calculate total and average latency if we have latencies
                     const totalLatency = newLatencies.length > 0
-                      ? newLatencies.reduce((sum, val) => sum + val, 0)
-                      : undefined;
+                        ? newLatencies.reduce((sum, val) => sum + val, 0)
+                        : undefined;
 
                     const averageLatency = totalLatency !== undefined
-                      ? Math.round(totalLatency / newLatencies.length)
-                      : undefined;
+                        ? Math.round(totalLatency / newLatencies.length)
+                        : undefined;
 
                     // Ensure status is one of the allowed values from RaceResult.status type
                     const newStatus: "pending" | "racing" | "success" | "error" =
-                      allTxCompleted ? "success" : "racing";
+                        allTxCompleted ? "success" : "racing";
 
                     return {
                       ...r,
@@ -1099,8 +1096,8 @@ export function useChainRace() {
 
                 // Only determine rankings when chains finish all transactions
                 const finishedResults = updatedResults
-                  .filter(r => r.status === "success")
-                  .sort((a, b) => (a.averageLatency || Infinity) - (b.averageLatency || Infinity));
+                    .filter(r => r.status === "success")
+                    .sort((a, b) => (a.averageLatency || Infinity) - (b.averageLatency || Infinity));
 
                 // Assign positions to finished results
                 finishedResults.forEach((result, idx) => {
@@ -1111,9 +1108,31 @@ export function useChainRace() {
                     }
                   });
                 });
-
                 return updatedResults;
               });
+            });
+            signatures.push(signature);
+            return tx.serialize();
+          });
+          await new Promise(res => setTimeout(res, 200));
+
+          // Run the specified number of transactions
+          for (let txIndex = 0; txIndex < transactionCount; txIndex++) {
+            try {
+              // Skip if chain already had an error
+              const currentState = results.find(r => r.chainId === chainId);
+              if (currentState?.status === "error") {
+                break;
+              }
+
+              txStartTimes.set(signatures[txIndex], performance.now());
+
+              await currentChainData.connection.sendRawTransaction(
+                  wireTransactions[txIndex],
+                  {
+                    skipPreflight: true,
+                  }
+              );
             } catch (error) {
               console.error(`Solana race error for chain ${chainId}, tx #${txIndex}:`, error);
 
@@ -1137,15 +1156,15 @@ export function useChainRace() {
               }
 
               setResults(prev =>
-                prev.map(r =>
-                  r.chainId === chainId
-                    ? {
-                      ...r,
-                      status: "error" as const,
-                      error: errorMessage
-                    }
-                    : r
-                )
+                  prev.map(r =>
+                      r.chainId === chainId
+                          ? {
+                            ...r,
+                            status: "error" as const,
+                            error: errorMessage
+                          }
+                          : r
+                  )
               );
               break; // Stop sending transactions for this chain if there's an error
             }
